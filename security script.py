@@ -101,7 +101,7 @@ def check_updates():
             }
             """
             result = subprocess.run(['powershell', '-Command', powershell_command], capture_output=True, text=True, check=False)
-            #testing
+        
             if result.returncode == 0:
                 updates_json = result.stdout.strip()
                 try:

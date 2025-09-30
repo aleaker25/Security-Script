@@ -1,29 +1,35 @@
-import subprocess
-import socket
-import secrets
-import string
-import sys
-import platform
-import logging
-import argparse
-import dns.resolver
-import os
-import hashlib
-import getpass
-import json
+import subprocess  # For running external commands
+import socket  # For network operations
+import secrets  # For generating secure random numbers
+import string  # For string operations
+import sys  # For system-specific parameters and functions
+import platform  # For accessing platform information
+import logging  # For logging messages
+import argparse  # For parsing command-line arguments
+import dns.resolver  # For performing DNS queries
+import os  # For interacting with the operating system
+import hashlib  # For creating hash digests
+import getpass  # For getting the user name
+import json # For working with JSON data
 
 # Configure logging
 logger = logging.getLogger()
-logger.handlers = []  # Remove default handlers
+logger.handlers = []  # Remove default handlers to avoid duplicate logs
 logging.basicConfig(filename='security_script.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def log_user_input(message):
+    """Logs user input for auditing purposes."""
     logging.info(f"User Input: {message}")
 
 def ping_host(host):
+    """Pings a host and prints the output.
+
+    Args:
+        host (str): The hostname or IP address to ping.
+    """
     log_user_input(f"Pinging host: {host}")
-    param = '-n' if platform.system().lower() == 'windows' else '-c'
+    param = '-n' if platform.system().lower() == 'windows' else '-c'  # Use '-n' on Windows, '-c' elsewhere
     try:
         output = subprocess.check_output(['ping', param, '4', host], universal_newlines=True, timeout=5)
         print(output)
@@ -36,15 +42,24 @@ def ping_host(host):
         logging.warning(f"Ping to {host} timed out.")
 
 def scan_ports(host, ports):
+    """Scans specified ports on a host to check if they are open.
+
+    Args:
+        host (str): The hostname or IP address to scan.
+        ports (list of int): A list of port numbers to scan.
+
+    Returns:
+        list of int: A list of open ports.
+    """
     log_user_input(f"Scanning ports on host: {host}, ports: {ports}")
     print(f"Scanning {host} for open ports...")
     open_ports = []
     for port in ports:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(0.5)
+                s.settimeout(0.5)  # Set a timeout for the connection attempt
                 result = s.connect_ex((host, port))
-                if result == 0:
+                if result == 0:  # 0 indicates the port is open
                     open_ports.append(port)
                     logging.info(f"Port {port} is open on {host}")
         except socket.error as e:
@@ -57,6 +72,14 @@ def scan_ports(host, ports):
     return open_ports
 
 def generate_password(length=16):
+    """Generates a secure random password.
+
+    Args:
+        length (int): The desired length of the password.  Defaults to 16.
+
+    Returns:
+        str: The generated password.
+    """
     log_user_input(f"Generating password with length: {length}")
     alphabet = string.ascii_letters + string.digits + string.punctuation
     password = ''.join(secrets.choice(alphabet) for _ in range(length))
@@ -65,11 +88,12 @@ def generate_password(length=16):
     return password
 
 def check_updates():
+    """Checks for pending Windows updates using PowerShell."""
     log_user_input("Checking for updates")
     if platform.system().lower() == 'windows':
         print("Checking for Windows updates...")
         try:
-            # Run the PowerShell command to get pending updates
+            # PowerShell command to retrieve pending updates in JSON format
             powershell_command = r"""
             try {
                 $Session = New-Object -ComObject Microsoft.Update.Session
@@ -133,6 +157,7 @@ def check_updates():
         logging.warning("Update check is only implemented for Windows.")
 
 def check_firewall_rules():
+    """Checks and displays firewall rules based on the operating system."""
     log_user_input("Checking firewall rules")
     print("Checking Firewall Rules...")
     if platform.system().lower() == 'windows':
@@ -153,6 +178,11 @@ def check_firewall_rules():
             logging.error(f"Error checking firewall rules (iptables): {e}")
 
 def perform_dns_lookup(domain):
+    """Performs a DNS lookup for a given domain and prints A, MX, and NS records.
+
+    Args:
+        domain (str): The domain name to lookup.
+    """
     log_user_input(f"Performing DNS lookup for domain: {domain}")
     print(f"Performing DNS lookup for {domain}...")
     try:
@@ -177,10 +207,15 @@ def perform_dns_lookup(domain):
         logging.error(f"Error performing DNS lookup for {domain}: {e}")
 
 def file_integrity_check(filepath, expected_hash=None):
+    """Calculates the SHA256 hash of a file and compares it to an expected hash.
+
+    Args:
+        filepath (str): The path to the file to check.
+        expected_hash (str, optional): The expected SHA256 hash of the file. Defaults to None.
+    """
     log_user_input(f"Performing file integrity check on: {filepath}")
     print(f"Checking integrity of {filepath}...")
     try:
-        # Use a more memory-efficient approach for large files
         sha256_hash = hashlib.sha256()
         with open(filepath, "rb") as f:
             while True:
@@ -208,6 +243,7 @@ def file_integrity_check(filepath, expected_hash=None):
         logging.error(f"Error calculating hash for {filepath}: {e}")
 
 def monitor_user_accounts():
+    """Monitors user accounts on the system."""
     log_user_input("Monitoring user accounts")
     print("Monitoring User Accounts...")
     try:
@@ -225,6 +261,7 @@ def monitor_user_accounts():
         logging.error(f"Error monitoring user accounts: {e}")
 
 def main():
+    """Main function to parse arguments and run security checks."""
     parser = argparse.ArgumentParser(description="Security Script Menu")
     parser.add_argument("-p", "--ping", help="Ping a host")
     parser.add_argument("-s", "--scan", help="Scan ports on a host", nargs='+', type=int)
@@ -259,6 +296,7 @@ def main():
     if args.accounts:
         monitor_user_accounts()
 
+    # If no command-line arguments are provided, present an interactive menu
     if not any(vars(args).values()):
         while True:
             print("\nSecurity Script Menu:")
